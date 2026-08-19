@@ -1,62 +1,76 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <readline/readline.h>
-#include <readline/history.h>
+
 #include "lexer.h"
 #include "token.h"
+#include "parser.h"
 
-#define MAX_HISTORY 100
+static void print_pipeline(const command_list_t *list)
+{
+    printf("\n============ PIPELINE ============\n");
 
-int main(void) {
-    char *input;
-    char history[MAX_HISTORY][1024];
-    int history_count = 0;
+    for (int i = 0; i < list->count; i++)
+    {
+        const command_t *cmd = &list->commands[i];
 
-    printf("Welcome to milestone 2\n\n");
+        printf("\nCommand %d\n", i + 1);
+        printf("--------------------------------\n");
 
-    while (1) {
-        input = readline("shellforge$ ");
+        printf("Arguments\n");
 
-        if (input == NULL)
+        for (int j = 0; j < cmd->argc; j++)
+        {
+            printf("argv[%d] = %s\n", j, cmd->args[j]);
+        }
+
+        printf("Input       : %s\n",
+               cmd->input_file ? cmd->input_file : "None");
+
+        printf("Output      : %s\n",
+               cmd->output_file ? cmd->output_file : "None");
+
+        printf("Append      : %s\n",
+               cmd->append ? "Yes" : "No");
+
+        printf("Background  : %s\n",
+               cmd->background ? "Yes" : "No");
+
+        printf("==================================\n");
+    }
+}
+
+int main(void)
+{
+    char input[1024];
+
+    printf("========================================\n");
+    printf("            Shellforge\n");
+    printf("     A Unix Style Shell written in C\n");
+    printf("========================================\n");
+
+    while (1)
+    {
+        printf("shellforge$ ");
+        fflush(stdout);
+
+        if (fgets(input, sizeof(input), stdin) == NULL)
             break;
 
-        if (strlen(input) == 0) {
-            free(input);
-            continue;
-        }
-
-        if (strcmp(input, "exit") == 0) {
-            free(input);
-            printf("Exiting..\n");
+        if (strcmp(input, "exit\n") == 0)
             break;
-        }
-
-        add_history(input);
-
-        if (history_count < MAX_HISTORY) {
-            strncpy(history[history_count], input, 1023);
-            history[history_count][1023] = '\0';
-            history_count++;
-        }
-
-        if (strcmp(input, "history") == 0) {
-            printf("\n------ Command History ------\n");
-
-            for (int i = 0; i < history_count - 1; i++)
-                printf("%d : %s\n", i + 1, history[i]);
-
-            printf("-----------------------------\n\n");
-
-            free(input);
-            continue;
-        }
 
         token_list_t tokens;
+        command_list_t commands;
+
+        token_list_init(&tokens);
+
         lexer_tokenize(input, &tokens);
+
         token_print(&tokens);
 
-        free(input);
+        parse_tokens(&tokens, &commands);
+
+        print_pipeline(&commands);
     }
 
     return 0;
