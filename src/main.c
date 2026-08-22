@@ -1,17 +1,23 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 
-#include "lexer.h"
 #include "token.h"
+#include "lexer.h"
 #include "parser.h"
+#include "expand.h"
+#include "builtin.h"
+#include "executor.h"
 
-static void print_pipeline(const command_list_t *list)
+static void print_pipeline(const pipeline_t *pipeline)
 {
     printf("\n============ PIPELINE ============\n");
 
-    for (int i = 0; i < list->count; i++)
+    for (int i = 0; i < pipeline->command_count; i++)
     {
-        const command_t *cmd = &list->commands[i];
+        const command_t *cmd = &pipeline->commands[i];
 
         printf("\nCommand %d\n", i + 1);
         printf("--------------------------------\n");
@@ -20,7 +26,7 @@ static void print_pipeline(const command_list_t *list)
 
         for (int j = 0; j < cmd->argc; j++)
         {
-            printf("argv[%d] = %s\n", j, cmd->args[j]);
+            printf("argv[%d] = %s\n", j, cmd->argv[j]);
         }
 
         printf("Input       : %s\n",
@@ -41,36 +47,65 @@ static void print_pipeline(const command_list_t *list)
 
 int main(void)
 {
-    char input[1024];
-
-    printf("========================================\n");
+    printf("=====================================\n");
     printf("            Shellforge\n");
-    printf("     A Unix Style Shell written in C\n");
-    printf("========================================\n");
+    printf("    A Unix Style Shell written in C\n");
+    printf("=====================================\n");
 
     while (1)
     {
-        printf("shellforge$ ");
-        fflush(stdout);
+        char *line = readline("shellforge$ ");
 
-        if (fgets(input, sizeof(input), stdin) == NULL)
+        if (line == NULL)
+        {
+            printf("\n");
             break;
+        }
 
-        if (strcmp(input, "exit\n") == 0)
+        if (strlen(line) == 0)
+        {
+            free(line);
+            continue;
+        }
+
+        add_history(line);
+
+        if (strcmp(line, "exit") == 0)
+        {
+            free(line);
             break;
+        }
 
         token_list_t tokens;
-        command_list_t commands;
+        pipeline_t pipeline;
 
-        token_list_init(&tokens);
+        /* Lexing */
+        lexer_tokenize(line, &tokens);
 
-        lexer_tokenize(input, &tokens);
-
+        /* Display tokens */
         token_print(&tokens);
 
-        parse_tokens(&tokens, &commands);
+        /* Parsing */
+        if (parser(&tokens, &pipeline) == 0)
+        {
+            printf("Parser error\n");
+            free(line);
+            continue;
+        }
 
-        print_pipeline(&commands);
+        /* Variable expansion */
+        expand_variables(&pipeline);
+
+        /* Display pipeline */
+        print_pipeline(&pipeline);
+
+        /* Execute commands */
+        for (int i = 0; i < pipeline.command_count; i++)
+        {
+            execute_command(&pipeline.commands[i]);
+        }
+
+        free(line);
     }
 
     return 0;

@@ -1,63 +1,50 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <glob.h>
+
 #include "expand.h"
 
-char **expand_arguments(char **args, int argc)
+static char *expand_string(const char *text)
 {
-    char **result = malloc(sizeof(char *) * MAX_EXPANDED_ARGS);
-    int count = 0;
+    if (text == NULL)
+        return NULL;
+
+    char *result = malloc(strlen(text) + 1);
 
     if (result == NULL)
         return NULL;
 
-    for (int i = 0; i < argc && count < MAX_EXPANDED_ARGS - 1; i++)
-    {
-        glob_t g;
+    strcpy(result, text);
 
-        if (glob(args[i], 0, NULL, &g) == 0 && g.gl_pathc > 0)
-        {
-            for (size_t j = 0;
-                 j < g.gl_pathc && count < MAX_EXPANDED_ARGS - 1;
-                 j++)
-            {
-                result[count] = malloc(strlen(g.gl_pathv[j]) + 1);
-
-                if (result[count] != NULL)
-                {
-                    strcpy(result[count], g.gl_pathv[j]);
-                    count++;
-                }
-            }
-
-            globfree(&g);
-        }
-        else
-        {
-            result[count] = malloc(strlen(args[i]) + 1);
-
-            if (result[count] != NULL)
-            {
-                strcpy(result[count], args[i]);
-                count++;
-            }
-
-            globfree(&g);
-        }
-    }
-
-    result[count] = NULL;
     return result;
 }
 
-void free_expanded_arguments(char **args, int count)
+void expand_variables(pipeline_t *pipeline)
 {
-    if (args == NULL)
+    if (pipeline == NULL)
         return;
 
-    for (int i = 0; i < count; i++)
-        free(args[i]);
+    for (int i = 0; i < pipeline->command_count; i++)
+    {
+        command_t *cmd = &pipeline->commands[i];
 
-    free(args);
+        for (int j = 0; j < cmd->argc; j++)
+        {
+            if (cmd->argv[j] == NULL)
+                continue;
+
+            if (cmd->argv[j][0] == '$')
+            {
+                const char *value =
+                    getenv(cmd->argv[j] + 1);
+
+                if (value != NULL)
+                {
+                    char *expanded = expand_string(value);
+
+                    if (expanded != NULL)
+                        cmd->argv[j] = expanded;
+                }
+            }
+        }
+    }
 }

@@ -1,92 +1,106 @@
-#include <stdio.h>
+#include <string.h>
 #include "parser.h"
 
-void parser_init(command_list_t *list)
+int parser(const token_list_t *tokens, pipeline_t *pipeline)
 {
-    list->count = 0;
-
-    for (int i = 0; i < MAX_TOKENS; i++)
-    {
-        list->commands[i].argc = 0;
-        list->commands[i].input_file = NULL;
-        list->commands[i].output_file = NULL;
-        list->commands[i].append = 0;
-        list->commands[i].background = 0;
-
-        for (int j = 0; j < MAX_ARGS; j++)
-            list->commands[i].args[j] = NULL;
-    }
-}
-
-int parse_tokens(const token_list_t *tokens, command_list_t *list)
-{
-    parser_init(list);
-
-    if (tokens == NULL || tokens->count == 0)
+    if (tokens == NULL || pipeline == NULL)
         return 0;
 
-    command_t *cmd = &list->commands[0];
-    list->count = 1;
+    pipeline->command_count = 0;
+
+    int cmd_index = 0;
+
+    pipeline->commands[0].argc = 0;
+    pipeline->commands[0].input_file = NULL;
+    pipeline->commands[0].output_file = NULL;
+    pipeline->commands[0].append = 0;
+    pipeline->commands[0].background = 0;
+
+    for (int i = 0; i < MAX_ARGS; i++)
+        pipeline->commands[0].argv[i] = NULL;
 
     for (int i = 0; i < tokens->count; i++)
     {
-        token_t *t = &tokens->tokens[i];
+        token_t *token = &tokens->tokens[i];
 
-        switch (t->type)
+        if (token->type == TOKEN_WORD)
         {
-            case TOKEN_WORD:
-                if (cmd->argc < MAX_ARGS - 1)
-                    cmd->args[cmd->argc++] = t->text;
+            command_t *cmd = &pipeline->commands[cmd_index];
+
+            if (cmd->argc < MAX_ARGS - 1)
+            {
+                cmd->argv[cmd->argc++] = token->text;
+            }
+        }
+        else if (token->type == TOKEN_PIPE)
+        {
+            pipeline->commands[cmd_index].argv[
+                pipeline->commands[cmd_index].argc
+            ] = NULL;
+
+            cmd_index++;
+
+            if (cmd_index >= MAX_COMMANDS)
                 break;
 
-            case TOKEN_INPUT:
-                if (i + 1 < tokens->count &&
-                    tokens->tokens[i + 1].type == TOKEN_WORD)
-                {
-                    cmd->input_file = tokens->tokens[++i].text;
-                }
-                break;
+            pipeline->commands[cmd_index].argc = 0;
+            pipeline->commands[cmd_index].input_file = NULL;
+            pipeline->commands[cmd_index].output_file = NULL;
+            pipeline->commands[cmd_index].append = 0;
+            pipeline->commands[cmd_index].background = 0;
 
-            case TOKEN_OUTPUT:
-            case TOKEN_APPEND:
-                if (i + 1 < tokens->count &&
-                    tokens->tokens[i + 1].type == TOKEN_WORD)
-                {
-                    cmd->output_file = tokens->tokens[++i].text;
-                    cmd->append = (t->type == TOKEN_APPEND);
-                }
-                break;
+            for (int j = 0; j < MAX_ARGS; j++)
+                pipeline->commands[cmd_index].argv[j] = NULL;
+        }
+        else if (token->type == TOKEN_INPUT)
+        {
+            if (i + 1 < tokens->count &&
+                tokens->tokens[i + 1].type == TOKEN_WORD)
+            {
+                pipeline->commands[cmd_index].input_file =
+                    tokens->tokens[++i].text;
+            }
+        }
+        else if (token->type == TOKEN_OUTPUT)
+        {
+            if (i + 1 < tokens->count &&
+                tokens->tokens[i + 1].type == TOKEN_WORD)
+            {
+                pipeline->commands[cmd_index].output_file =
+                    tokens->tokens[++i].text;
 
-            case TOKEN_BACKGROUND:
-                cmd->background = 1;
-                break;
+                pipeline->commands[cmd_index].append = 0;
+            }
+        }
+        else if (token->type == TOKEN_APPEND)
+        {
+            if (i + 1 < tokens->count &&
+                tokens->tokens[i + 1].type == TOKEN_WORD)
+            {
+                pipeline->commands[cmd_index].output_file =
+                    tokens->tokens[++i].text;
 
-            case TOKEN_PIPE:
-                if (list->count < MAX_TOKENS)
-                {
-                    cmd->args[cmd->argc] = NULL;
-
-                    cmd = &list->commands[list->count++];
-
-                    cmd->argc = 0;
-                    cmd->input_file = NULL;
-                    cmd->output_file = NULL;
-                    cmd->append = 0;
-                    cmd->background = 0;
-                }
-                break;
-
-            case TOKEN_END:
-                i = tokens->count;
-                break;
-
-            default:
-                break;
+                pipeline->commands[cmd_index].append = 1;
+            }
+        }
+        else if (token->type == TOKEN_BACKGROUND)
+        {
+            pipeline->commands[cmd_index].background = 1;
+        }
+        else if (token->type == TOKEN_END)
+        {
+            break;
         }
     }
 
-    for (int i = 0; i < list->count; i++)
-        list->commands[i].args[list->commands[i].argc] = NULL;
+    for (int i = 0; i <= cmd_index; i++)
+    {
+        pipeline->commands[i].argv[
+            pipeline->commands[i].argc
+        ] = NULL;
+    }
 
-    return list->count;
+    pipeline->command_count = cmd_index + 1;
+
+    return 1;
 }

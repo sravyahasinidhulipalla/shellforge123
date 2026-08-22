@@ -1,9 +1,8 @@
 #ifndef EXPAND_H
 #define EXPAND_H
 
-#define MAX_EXPANDED_ARGS 100
+#include "parser.h"
 
-char **expand_arguments(char **args, int argc);
-void free_expanded_arguments(char **args, int count);
+void expand_variables(pipeline_t *pipeline);
 
 #endif
