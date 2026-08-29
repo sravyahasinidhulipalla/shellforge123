@@ -50,11 +50,12 @@ int main(void)
     printf("=====================================\n");
     printf("            Shellforge\n");
     printf("    A Unix Style Shell written in C\n");
+    printf("          ID: 2500031374\n");
     printf("=====================================\n");
 
     while (1)
     {
-        char *line = readline("shellforge$ ");
+        char *line = readline("2500031374@shellforge$ ");
 
         if (line == NULL)
         {
