@@ -50,12 +50,11 @@ int main(void)
     printf("=====================================\n");
     printf("            Shellforge\n");
     printf("    A Unix Style Shell written in C\n");
-    printf("          ID: 2500031374\n");
     printf("=====================================\n");
 
     while (1)
     {
-        char *line = readline("2500031374@shellforge$ ");
+        char *line = readline("shellforge$ ");
 
         if (line == NULL)
         {
@@ -100,11 +99,8 @@ int main(void)
         /* Display pipeline */
         print_pipeline(&pipeline);
 
-        /* Execute commands */
-        for (int i = 0; i < pipeline.command_count; i++)
-        {
-            execute_command(&pipeline.commands[i]);
-        }
+        /* Execute complete pipeline */
+        execute_pipeline(&pipeline);
 
         free(line);
     }
