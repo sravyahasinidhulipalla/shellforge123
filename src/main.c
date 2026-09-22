@@ -11,6 +11,10 @@
 #include "builtin.h"
 #include "executor.h"
 
+/* =========================================================
+   DISPLAY PIPELINE
+   ========================================================= */
+
 static void print_pipeline(const pipeline_t *pipeline)
 {
     printf("\n============ PIPELINE ============\n");
@@ -45,8 +49,15 @@ static void print_pipeline(const pipeline_t *pipeline)
     }
 }
 
+/* =========================================================
+   MAIN
+   ========================================================= */
+
 int main(void)
 {
+    /* Setup SIGCHLD handler for background processes */
+    setup_background_handler();
+
     printf("=====================================\n");
     printf("            Shellforge\n");
     printf("    A Unix Style Shell written in C\n");
@@ -79,13 +90,19 @@ int main(void)
         token_list_t tokens;
         pipeline_t pipeline;
 
-        /* Lexing */
+        /* -------------------------------------------------
+           LEXING
+           ------------------------------------------------- */
+
         lexer_tokenize(line, &tokens);
 
         /* Display tokens */
         token_print(&tokens);
 
-        /* Parsing */
+        /* -------------------------------------------------
+           PARSING
+           ------------------------------------------------- */
+
         if (parser(&tokens, &pipeline) == 0)
         {
             printf("Parser error\n");
@@ -93,13 +110,22 @@ int main(void)
             continue;
         }
 
-        /* Variable expansion */
+        /* -------------------------------------------------
+           VARIABLE EXPANSION
+           ------------------------------------------------- */
+
         expand_variables(&pipeline);
 
-        /* Display pipeline */
+        /* -------------------------------------------------
+           DISPLAY PIPELINE
+           ------------------------------------------------- */
+
         print_pipeline(&pipeline);
 
-        /* Execute complete pipeline */
+        /* -------------------------------------------------
+           EXECUTE COMPLETE PIPELINE
+           ------------------------------------------------- */
+
         execute_pipeline(&pipeline);
 
         free(line);

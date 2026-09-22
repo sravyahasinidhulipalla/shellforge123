@@ -6,4 +6,6 @@
 int execute_command(command_t *cmd);
 int execute_pipeline(pipeline_t *pipeline);
 
+void setup_background_handler(void);
+
 #endif
