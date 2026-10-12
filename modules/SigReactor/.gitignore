@@ -1,0 +1,5 @@
+sigreactor
+*.o
+*.out
+*.log
+logs/event_fifo

@@ -1,0 +1,33 @@
+# Generated executables
+/modules/co4_memory/memory_layout
+/modules/co4_memory/virtual_memory
+/modules/co4_memory/memory_allocation
+/modules/co4_memory/copy_on_write
+/modules/co4_memory/memory_debug
+/modules/co4_memory/demand_paging
+
+/modules/co5_filesystem/file_operations
+/modules/co5_filesystem/buffered_io
+/modules/co5_filesystem/mmap_file
+/modules/co5_filesystem/condition_variable
+
+/modules/co6_concurrency/threads
+/modules/co6_concurrency/mutex_sync
+/modules/co6_concurrency/condition_variable
+/modules/co6_concurrency/semaphore_demo
+/modules/co6_concurrency/deadlock_safe
+
+/modules/SigReactor/sigreactor
+
+# Generated output files
+/modules/co5_filesystem/buffered.txt
+/modules/co5_filesystem/unbuffered.txt
+/modules/co5_filesystem/mapped.txt
+/modules/SigReactor/buffered.txt
+/modules/SigReactor/unbuffered.txt
+/modules/SigReactor/mapped.txt
+
+# Temporary files
+/id,
+/state
+/out.txt

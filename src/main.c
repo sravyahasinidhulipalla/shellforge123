@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -10,66 +11,75 @@
 #include "expand.h"
 #include "builtin.h"
 #include "executor.h"
-
-/* =========================================================
-   DISPLAY PIPELINE
-   ========================================================= */
+#include "jobs.h"
 
 static void print_pipeline(const pipeline_t *pipeline)
 {
-    printf("\n============ PIPELINE ============\n");
+    printf("\n========== PARSED PIPELINE ==========\n");
 
-    for (int i = 0; i < pipeline->command_count; i++)
+    for (int i = 0;
+         i < pipeline->command_count;
+         i++)
     {
-        const command_t *cmd = &pipeline->commands[i];
+        const command_t *cmd =
+            &pipeline->commands[i];
 
-        printf("\nCommand %d\n", i + 1);
-        printf("--------------------------------\n");
+        printf("Command %d:\n", i + 1);
 
-        printf("Arguments\n");
+        printf("  argc = %d\n",
+               cmd->argc);
 
-        for (int j = 0; j < cmd->argc; j++)
+        for (int j = 0;
+             j < cmd->argc;
+             j++)
         {
-            printf("argv[%d] = %s\n", j, cmd->argv[j]);
+            printf("  argv[%d] = %s\n",
+                   j,
+                   cmd->argv[j]);
         }
 
-        printf("Input       : %s\n",
-               cmd->input_file ? cmd->input_file : "None");
+        if (cmd->input_file != NULL)
+        {
+            printf("  input = %s\n",
+                   cmd->input_file);
+        }
 
-        printf("Output      : %s\n",
-               cmd->output_file ? cmd->output_file : "None");
+        if (cmd->output_file != NULL)
+        {
+            printf("  output = %s\n",
+                   cmd->output_file);
+        }
 
-        printf("Append      : %s\n",
-               cmd->append ? "Yes" : "No");
+        printf("  append = %d\n",
+               cmd->append);
 
-        printf("Background  : %s\n",
-               cmd->background ? "Yes" : "No");
-
-        printf("==================================\n");
+        printf("  background = %d\n",
+               cmd->background);
     }
-}
 
-/* =========================================================
-   MAIN
-   ========================================================= */
+    printf("=====================================\n\n");
+}
 
 int main(void)
 {
-    /* Setup SIGCHLD handler for background processes */
+    jobs_init();
+
+    setup_job_control();
     setup_background_handler();
 
     printf("=====================================\n");
-    printf("            Shellforge\n");
-    printf("    A Unix Style Shell written in C\n");
+    printf("      Shellforge\n");
+    printf(" A Unix Style Shell written in C\n");
     printf("=====================================\n");
 
     while (1)
     {
-        char *line = readline("shellforge$ ");
+        char *line =
+            readline("shellforge$ ");
 
         if (line == NULL)
         {
-            printf("\n");
+            printf("\nExiting...\n");
             break;
         }
 
@@ -83,6 +93,7 @@ int main(void)
 
         if (strcmp(line, "exit") == 0)
         {
+            printf("Exiting...\n");
             free(line);
             break;
         }
@@ -90,43 +101,41 @@ int main(void)
         token_list_t tokens;
         pipeline_t pipeline;
 
-        /* -------------------------------------------------
-           LEXING
-           ------------------------------------------------- */
-
         lexer_tokenize(line, &tokens);
 
-        /* Display tokens */
         token_print(&tokens);
-
-        /* -------------------------------------------------
-           PARSING
-           ------------------------------------------------- */
 
         if (parser(&tokens, &pipeline) == 0)
         {
             printf("Parser error\n");
+
             free(line);
             continue;
         }
 
-        /* -------------------------------------------------
-           VARIABLE EXPANSION
-           ------------------------------------------------- */
-
         expand_variables(&pipeline);
-
-        /* -------------------------------------------------
-           DISPLAY PIPELINE
-           ------------------------------------------------- */
 
         print_pipeline(&pipeline);
 
-        /* -------------------------------------------------
-           EXECUTE COMPLETE PIPELINE
-           ------------------------------------------------- */
+        if (pipeline.command_count == 1 &&
+            is_builtin(&pipeline.commands[0]))
+        {
+            int result =
+                execute_builtin(
+                    &pipeline.commands[0]);
 
-        execute_pipeline(&pipeline);
+            if (result == 1)
+            {
+                printf("Exiting...\n");
+                free(line);
+                break;
+            }
+
+            free(line);
+            continue;
+        }
+
+        execute_pipeline(&pipeline, line);
 
         free(line);
     }

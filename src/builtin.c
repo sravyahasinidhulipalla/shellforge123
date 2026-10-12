@@ -4,36 +4,35 @@
 #include <unistd.h>
 
 #include "builtin.h"
+#include "jobs.h"
+#include "executor.h"
 
-/* =========================================================
-   BUILTIN: cd
-   ========================================================= */
-
-static int builtin_cd(command_t *cmd)
+static int builtin_id(command_t *cmd)
 {
-    const char *directory;
+    if (cmd->argc != 2)
+    {
+        fprintf(stderr,
+                "id: usage: id <number>\n");
 
-    if (cmd->argc == 1)
-    {
-        directory = getenv("HOME");
-
-        if (directory == NULL)
-        {
-            fprintf(stderr, "cd: HOME not set\n");
-            return -1;
-        }
-    }
-    else if (cmd->argc == 2)
-    {
-        directory = cmd->argv[1];
-    }
-    else
-    {
-        fprintf(stderr, "cd: too many arguments\n");
         return -1;
     }
 
-    if (chdir(directory) != 0)
+    printf("ID: %s\n", cmd->argv[1]);
+
+    return 0;
+}
+
+static int builtin_cd(command_t *cmd)
+{
+    if (cmd->argc != 2)
+    {
+        fprintf(stderr,
+                "cd: usage: cd <directory>\n");
+
+        return -1;
+    }
+
+    if (chdir(cmd->argv[1]) < 0)
     {
         perror("cd");
         return -1;
@@ -42,35 +41,22 @@ static int builtin_cd(command_t *cmd)
     return 0;
 }
 
-/* =========================================================
-   BUILTIN: pwd
-   ========================================================= */
-
 static int builtin_pwd(command_t *cmd)
 {
-    char current_directory[4096];
+    char cwd[1024];
 
-    if (cmd->argc > 1)
-    {
-        fprintf(stderr, "pwd: too many arguments\n");
-        return -1;
-    }
+    (void)cmd;
 
-    if (getcwd(current_directory,
-               sizeof(current_directory)) == NULL)
+    if (getcwd(cwd, sizeof(cwd)) == NULL)
     {
         perror("pwd");
         return -1;
     }
 
-    printf("%s\n", current_directory);
+    printf("%s\n", cwd);
 
     return 0;
 }
-
-/* =========================================================
-   BUILTIN: echo
-   ========================================================= */
 
 static int builtin_echo(command_t *cmd)
 {
@@ -87,54 +73,88 @@ static int builtin_echo(command_t *cmd)
     return 0;
 }
 
-/* =========================================================
-   BUILTIN: exit
-   ========================================================= */
-
-static int builtin_exit(command_t *cmd)
+static int builtin_jobs(command_t *cmd)
 {
-    if (cmd->argc > 1)
-    {
-        fprintf(stderr, "exit: too many arguments\n");
-        return -1;
-    }
+    (void)cmd;
 
-    return 1;
-}
-
-/* =========================================================
-   CHECK WHETHER COMMAND IS A BUILTIN
-   ========================================================= */
-
-int is_builtin(const command_t *cmd)
-{
-    if (cmd == NULL || cmd->argc == 0)
-        return 0;
-
-    if (strcmp(cmd->argv[0], "cd") == 0)
-        return 1;
-
-    if (strcmp(cmd->argv[0], "pwd") == 0)
-        return 1;
-
-    if (strcmp(cmd->argv[0], "echo") == 0)
-        return 1;
-
-    if (strcmp(cmd->argv[0], "exit") == 0)
-        return 1;
+    jobs_reap();
+    jobs_print();
 
     return 0;
 }
 
-/* =========================================================
-   EXECUTE BUILTIN
-   ========================================================= */
+static int builtin_fg(command_t *cmd)
+{
+    if (cmd->argc != 2)
+    {
+        fprintf(stderr,
+                "fg: usage: fg <job_id>\n");
+
+        return -1;
+    }
+
+    int id = atoi(cmd->argv[1]);
+
+    job_t *job = job_find(id);
+
+    if (job == NULL)
+    {
+        fprintf(stderr,
+                "fg: job %d not found\n",
+                id);
+
+        return -1;
+    }
+
+    return foreground_job(job);
+}
+
+static int builtin_bg(command_t *cmd)
+{
+    if (cmd->argc != 2)
+    {
+        fprintf(stderr,
+                "bg: usage: bg <job_id>\n");
+
+        return -1;
+    }
+
+    int id = atoi(cmd->argv[1]);
+
+    job_t *job = job_find(id);
+
+    if (job == NULL)
+    {
+        fprintf(stderr,
+                "bg: job %d not found\n",
+                id);
+
+        return -1;
+    }
+
+    return background_job(job);
+}
+
+int is_builtin(const command_t *cmd)
+{
+    if (cmd == NULL ||
+        cmd->argc == 0)
+    {
+        return 0;
+    }
+
+    return strcmp(cmd->argv[0], "cd") == 0 ||
+           strcmp(cmd->argv[0], "pwd") == 0 ||
+           strcmp(cmd->argv[0], "echo") == 0 ||
+           strcmp(cmd->argv[0], "id") == 0 ||
+           strcmp(cmd->argv[0], "exit") == 0 ||
+           strcmp(cmd->argv[0], "jobs") == 0 ||
+           strcmp(cmd->argv[0], "fg") == 0 ||
+           strcmp(cmd->argv[0], "bg") == 0;
+}
 
 int execute_builtin(command_t *cmd)
 {
-    if (cmd == NULL || cmd->argc == 0)
-        return -1;
-
     if (strcmp(cmd->argv[0], "cd") == 0)
         return builtin_cd(cmd);
 
@@ -144,8 +164,20 @@ int execute_builtin(command_t *cmd)
     if (strcmp(cmd->argv[0], "echo") == 0)
         return builtin_echo(cmd);
 
+    if (strcmp(cmd->argv[0], "id") == 0)
+        return builtin_id(cmd);
+
+    if (strcmp(cmd->argv[0], "jobs") == 0)
+        return builtin_jobs(cmd);
+
+    if (strcmp(cmd->argv[0], "fg") == 0)
+        return builtin_fg(cmd);
+
+    if (strcmp(cmd->argv[0], "bg") == 0)
+        return builtin_bg(cmd);
+
     if (strcmp(cmd->argv[0], "exit") == 0)
-        return builtin_exit(cmd);
+        return 1;
 
     return -1;
 }
